@@ -16,8 +16,7 @@ type Values struct {
 // value if the specified key exist, or false
 // if no such key was found
 func (v *Values) Get(key string) (string, bool) {
-	s, ok := v.m[key]
-	return s.String(), ok
+	return v.m[key].String()
 }
 
 // GetInt returns the value matching the specified key,
@@ -50,18 +49,26 @@ type Value struct {
 }
 
 // String returns a configuration value in string format
-func (c *Value) String() string {
-	if s, ok := c.v.(string); ok {
-		return s
+func (c *Value) String() (string, bool) {
+	if c == nil {
+		return "", false
 	}
 
-	return fmt.Sprintf("%v", c.v)
+	if s, ok := c.v.(string); ok {
+		return s, true
+	}
+
+	return fmt.Sprintf("%v", c.v), true
 }
 
 // Int returns a configuration value as an integer, and
 // return true as second return value if the value could
 // be returned as an int - otherwise it returns false
 func (c *Value) Int() (int, bool) {
+	if c == nil {
+		return 0, false
+	}
+
 	if i, ok := c.v.(int); ok {
 		return i, true
 	}
@@ -80,6 +87,10 @@ func (c *Value) Int() (int, bool) {
 // return true as second return value if the value could
 // be returned as a float - otherwise it returns false
 func (c *Value) Float() (float64, bool) {
+	if c == nil {
+		return 0, false
+	}
+
 	if f, ok := c.v.(float32); ok {
 		return float64(f), true
 	}
@@ -104,6 +115,10 @@ func (c *Value) Float() (float64, bool) {
 // return true as second return value if the value could
 // be returned as a boolean - otherwise it returns false
 func (c *Value) Bool() (bool, bool) {
+	if c == nil {
+		return false, false
+	}
+
 	if b, ok := c.v.(bool); ok {
 		return b, true
 	}
