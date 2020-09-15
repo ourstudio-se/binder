@@ -49,6 +49,10 @@ type fakeBinder3 struct {
 	ValueField string `config:"binder_key"`
 }
 
+type fakeBinder4 struct {
+	ValueField []string `config:"binder_slice"`
+}
+
 func Test_New(t *testing.T) {
 	fakes := []*fakeOption{
 		newFakeOption(),
@@ -131,6 +135,7 @@ func Test_Bind(t *testing.T) {
 	m := make(map[string]interface{})
 	m["binder_key"] = "value"
 	m["binder_key_two"] = "value_two"
+	m["binder_slice"] = []string{"a", "b"}
 
 	c := New(
 		WithParser(newFakeParser(m)))
@@ -138,13 +143,15 @@ func Test_Bind(t *testing.T) {
 	var b1 fakeBinder
 	var b2 fakeBinder2
 	var b3 fakeBinder3
+	var b4 fakeBinder4
 
 	c.Bind(&b1)
-	c.Bind(&b2, &b3)
+	c.Bind(&b2, &b3, &b4)
 
 	assert.Equal(t, "value", b1.ValueField)
 	assert.Equal(t, "value_two", b2.ValueField2)
 	assert.Equal(t, "value", b3.ValueField)
+	assert.EqualValues(t, []string{"a", "b"}, b4.ValueField)
 }
 
 type fakeRebindParser struct {

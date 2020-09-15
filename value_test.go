@@ -19,6 +19,19 @@ func Test_Values_Get(t *testing.T) {
 	assert.Equal(t, "value", value)
 }
 
+func Test_Values_GetStrings(t *testing.T) {
+	m := make(map[string]*Value)
+	m["key"] = &Value{v: []string{"val1", "val2"}}
+
+	v := &Values{
+		m,
+	}
+
+	values, ok := v.GetStrings("key")
+	assert.True(t, ok)
+	assert.EqualValues(t, []string{"val1", "val2"}, values)
+}
+
 func Test_Values_GetInt(t *testing.T) {
 	m := make(map[string]*Value)
 	m["key"] = &Value{v: 100}
