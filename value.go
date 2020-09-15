@@ -5,8 +5,7 @@ import (
 	"strconv"
 )
 
-// Values is a collection of configuration
-// values
+// Values is a collection of configuration values
 type Values struct {
 	m map[string]*Value
 }
@@ -17,6 +16,15 @@ type Values struct {
 // if no such key was found
 func (v *Values) Get(key string) (string, bool) {
 	return v.m[key].String()
+}
+
+// GetStrings returns the value matching the specified
+// key as a collection of strings. It returns true as
+// second return value if the specified key exist, or
+// false if no such key was found or if it was in the
+// wrong format
+func (v *Values) GetStrings(key string) ([]string, bool) {
+	return v.m[key].StringArray()
 }
 
 // GetInt returns the value matching the specified key,
@@ -59,6 +67,19 @@ func (c *Value) String() (string, bool) {
 	}
 
 	return fmt.Sprintf("%v", c.v), true
+}
+
+// StringArray returns a configuration collection of strings
+func (c *Value) StringArray() ([]string, bool) {
+	if c == nil {
+		return nil, false
+	}
+
+	if s, ok := c.v.([]string); ok {
+		return s, true
+	}
+
+	return nil, false
 }
 
 // Int returns a configuration value as an integer, and

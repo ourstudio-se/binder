@@ -46,7 +46,10 @@ func New(opts ...Option) *Config {
 
 // Close cleans up channels and file watches
 func (c *Config) Close() {
-	c.watch.Close()
+	if c.watch != nil {
+		c.watch.Close()
+	}
+
 	close(c.errch)
 }
 
@@ -160,6 +163,14 @@ func (c *Config) bind(v reflect.Value) {
 				elem.Field(i).SetString(value)
 			}
 		}
+		if elem.Field(i).Kind() == reflect.Array || elem.Field(i).Kind() == reflect.Slice {
+			value, ok := c.cache.GetStrings(tag)
+			if ok {
+				cur := elem.Field(i).Interface().([]string)
+				changed = cur != nil && isSliceEqual(cur, value)
+				elem.Field(i).Set(reflect.ValueOf(value))
+			}
+		}
 		if elem.Field(i).Kind() == reflect.Int {
 			value, ok := c.cache.GetInt(tag)
 			if ok {
@@ -207,6 +218,23 @@ func (c *Config) apply() {
 	for _, v := range c.binders {
 		c.bind(v)
 	}
+}
+
+func isSliceEqual(as interface{}, bs interface{}) bool {
+	a := as.([]interface{})
+	b := bs.([]interface{})
+
+	if len(a) != len(b) {
+		return false
+	}
+
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+
+	return true
 }
 
 func newFileWatcher(fn func(), errfn func(error)) *watcher.Watcher {
