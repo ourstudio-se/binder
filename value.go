@@ -79,7 +79,7 @@ func (c *Value) StringArray() ([]string, bool) {
 	o := reflect.ValueOf(c.v)
 	var s []string
 	for i := 0; i < o.Len(); i++ {
-		s = append(s, o.Index(i).String())
+		s = append(s, o.Index(i).Interface().(string))
 	}
 
 	return s, true
