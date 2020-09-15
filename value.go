@@ -2,6 +2,7 @@ package binder
 
 import (
 	"fmt"
+	"reflect"
 	"strconv"
 )
 
@@ -75,11 +76,13 @@ func (c *Value) StringArray() ([]string, bool) {
 		return nil, false
 	}
 
-	if s, ok := c.v.([]string); ok {
-		return s, true
+	o := reflect.ValueOf(c.v)
+	var s []string
+	for i := 0; i < o.Len(); i++ {
+		s = append(s, o.Index(i).String())
 	}
 
-	return nil, false
+	return s, true
 }
 
 // Int returns a configuration value as an integer, and
