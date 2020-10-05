@@ -23,8 +23,8 @@ func WithParser(p Parser) Option {
 // WithEnv is an Option to instantiate a
 // parser which reads environment variables
 // when instantiating a Config
-func WithEnv(prefix string) Option {
-	return WithParser(parsers.NewEnvParserWithPrefix(prefix))
+func WithEnv(prefixes ...string) Option {
+	return WithParser(parsers.NewEnvParserWithPrefix(prefixes...))
 }
 
 // WithFile is an Option to instantiate a
