@@ -23,6 +23,10 @@ func NewEnvParser() *EnvParser {
 // which reads environment variables with any of
 // the specified prefixes
 func NewEnvParserWithPrefix(prefixes ...string) *EnvParser {
+	if len(prefixes) == 0 {
+		prefixes = append(prefixes, "")
+	}
+
 	return &EnvParser{prefixes}
 }
 
