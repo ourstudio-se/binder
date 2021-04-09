@@ -22,6 +22,7 @@ type Parser interface {
 // a custom type.
 type Config struct {
 	parsers []Parser
+	mask    BindMode
 	binders []reflect.Value
 	cache   *Values
 	errch   chan error
@@ -35,6 +36,7 @@ type Config struct {
 // configuration parsers.
 func New(opts ...Option) *Config {
 	c := &Config{}
+	c.mask = DefaultBindMode
 	c.errch = make(chan error, 1)
 
 	for _, opt := range opts {
@@ -184,7 +186,7 @@ func (c *Config) bindValue(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindString(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.Get(tag)
+	value, ok := c.cache.getString(tag, c.mask)
 	if ok {
 		cur := elem.String()
 		elem.SetString(value)
@@ -195,7 +197,7 @@ func (c *Config) bindString(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindStringArray(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.GetStrings(tag)
+	value, ok := c.cache.getStrings(tag, c.mask)
 	if ok {
 		cur := elem.Interface().([]string)
 		elem.Set(reflect.ValueOf(value))
@@ -206,7 +208,7 @@ func (c *Config) bindStringArray(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindInt(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.GetInt(tag)
+	value, ok := c.cache.getInt(tag, c.mask)
 	if ok {
 		cur := elem.Int()
 		elem.SetInt(int64(value))
@@ -217,7 +219,7 @@ func (c *Config) bindInt(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindFloat32(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.GetFloat(tag)
+	value, ok := c.cache.getFloat(tag, c.mask)
 	if ok {
 		cur := elem.Float()
 		elem.SetFloat(value)
@@ -228,7 +230,7 @@ func (c *Config) bindFloat32(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindFloat64(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.GetFloat(tag)
+	value, ok := c.cache.getFloat(tag, c.mask)
 	if ok {
 		cur := elem.Float()
 		elem.SetFloat(value)
@@ -239,7 +241,7 @@ func (c *Config) bindFloat64(elem reflect.Value, tag string) bool {
 }
 
 func (c *Config) bindBool(elem reflect.Value, tag string) bool {
-	value, ok := c.cache.GetBool(tag)
+	value, ok := c.cache.getBool(tag, c.mask)
 	if ok {
 		cur := elem.Bool()
 		elem.SetBool(value)
