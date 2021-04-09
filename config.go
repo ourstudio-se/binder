@@ -12,27 +12,27 @@ const configStructTagName string = "config"
 
 // Parser is an interface which defines
 // the minimum requirement to implement
-// a custom configuration parser
+// a custom configuration parser.
 type Parser interface {
 	Parse() (map[string]interface{}, error)
 }
 
 // Config is the configuration handler,
 // which can be read from or bound to
-// a custom type
+// a custom type.
 type Config struct {
 	parsers []Parser
 	binders []reflect.Value
 	cache   *Values
 	errch   chan error
 	watch   *watcher.Watcher
-	m       sync.RWMutex
+	m       sync.Mutex
 }
 
 // New is the configuration constructor,
 // taking Option(s) as functional parameters
 // to support a plethora of backing
-// configuration parsers
+// configuration parsers.
 func New(opts ...Option) *Config {
 	c := &Config{}
 	c.errch = make(chan error, 1)
@@ -44,7 +44,7 @@ func New(opts ...Option) *Config {
 	return c
 }
 
-// Close cleans up channels and file watches
+// Close cleans up channels and file watches.
 func (c *Config) Close() {
 	if c.watch != nil {
 		c.watch.Close()
@@ -55,7 +55,7 @@ func (c *Config) Close() {
 
 // Errors returns a `chan error` where
 // any possible errors will be reported, say from
-// a parsers as an example
+// a parsers as an example.
 func (c *Config) Errors() <-chan error {
 	return c.errch
 }
@@ -70,14 +70,14 @@ func (c *Config) errs(err error) {
 }
 
 // Use appends a backing Parser to the
-// configuration handler
+// configuration handler.
 func (c *Config) Use(p Parser) {
 	c.parsers = append(c.parsers, p)
 }
 
 // Watch adds a file or directory watch to the
 // specified path, which will trigger a re-bind
-// for any bound configuration
+// for any bound configuration.
 func (c *Config) Watch(path string) {
 	c.m.Lock()
 	defer c.m.Unlock()
@@ -86,15 +86,14 @@ func (c *Config) Watch(path string) {
 		c.watch = newFileWatcher(c.apply, c.errs)
 	}
 
-	err := c.watch.Add(path)
-	if err != nil {
+	if err := c.watch.Add(path); err != nil {
 		c.errs(err)
 	}
 }
 
 // Values iterates through all specified
 // backing parsers, and retrieves configuration
-// values from all of them
+// values from all of them.
 func (c *Config) Values() *Values {
 	if c.cache == nil {
 		c.build()
@@ -124,7 +123,7 @@ func (c *Config) build() {
 }
 
 // Bind takes one or more pointers to a custom type,
-// which configuration values will be bound to
+// which configuration values will be bound to.
 func (c *Config) Bind(outs ...interface{}) {
 	for _, out := range outs {
 		v := reflect.ValueOf(out)
@@ -143,8 +142,8 @@ func (c *Config) bind(v reflect.Value) {
 		c.build()
 	}
 
-	c.m.RLock()
-	defer c.m.RUnlock()
+	c.m.Lock()
+	defer c.m.Unlock()
 
 	elem := v.Elem()
 	t := elem.Type()
@@ -155,54 +154,7 @@ func (c *Config) bind(v reflect.Value) {
 			continue
 		}
 
-		if elem.Field(i).Kind() == reflect.String {
-			value, ok := c.cache.Get(tag)
-			if ok {
-				cur := elem.Field(i).String()
-				changed = cur != "" && cur != value
-				elem.Field(i).SetString(value)
-			}
-		}
-		if elem.Field(i).Kind() == reflect.Array || elem.Field(i).Kind() == reflect.Slice {
-			value, ok := c.cache.GetStrings(tag)
-			if ok {
-				cur := elem.Field(i).Interface().([]string)
-				changed = cur != nil && isSliceEqual(cur, value)
-				elem.Field(i).Set(reflect.ValueOf(value))
-			}
-		}
-		if elem.Field(i).Kind() == reflect.Int {
-			value, ok := c.cache.GetInt(tag)
-			if ok {
-				cur := elem.Field(i).Int()
-				changed = cur != 0 && cur != int64(value)
-				elem.Field(i).SetInt(int64(value))
-			}
-		}
-		if elem.Field(i).Kind() == reflect.Float32 {
-			value, ok := c.cache.GetFloat(tag)
-			if ok {
-				cur := elem.Field(i).Float()
-				changed = cur != 0 && cur != float64(value)
-				elem.Field(i).SetFloat(value)
-			}
-		}
-		if elem.Field(i).Kind() == reflect.Float64 {
-			value, ok := c.cache.GetFloat(tag)
-			if ok {
-				cur := elem.Field(i).Float()
-				changed = cur != 0 && cur != value
-				elem.Field(i).SetFloat(value)
-			}
-		}
-		if elem.Field(i).Kind() == reflect.Bool {
-			value, ok := c.cache.GetBool(tag)
-			if ok {
-				cur := elem.Field(i).Bool()
-				changed = !cur && cur != value
-				elem.Field(i).SetBool(value)
-			}
-		}
+		changed = c.bindValue(elem.Field(i), tag)
 	}
 
 	method := v.MethodByName("Notify")
@@ -210,6 +162,91 @@ func (c *Config) bind(v reflect.Value) {
 	if changed && method != n {
 		method.Call([]reflect.Value{})
 	}
+}
+
+func (c *Config) bindValue(elem reflect.Value, tag string) bool {
+	switch elem.Kind() {
+	case reflect.String:
+		return c.bindString(elem, tag)
+	case reflect.Array, reflect.Slice:
+		return c.bindStringArray(elem, tag)
+	case reflect.Int:
+		return c.bindInt(elem, tag)
+	case reflect.Float32:
+		return c.bindFloat32(elem, tag)
+	case reflect.Float64:
+		return c.bindFloat64(elem, tag)
+	case reflect.Bool:
+		return c.bindBool(elem, tag)
+	}
+
+	return false
+}
+
+func (c *Config) bindString(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.Get(tag)
+	if ok {
+		cur := elem.String()
+		elem.SetString(value)
+		return cur != "" && cur != value
+	}
+
+	return false
+}
+
+func (c *Config) bindStringArray(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.GetStrings(tag)
+	if ok {
+		cur := elem.Interface().([]string)
+		elem.Set(reflect.ValueOf(value))
+		return cur != nil && isSliceEqual(cur, value)
+	}
+
+	return false
+}
+
+func (c *Config) bindInt(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.GetInt(tag)
+	if ok {
+		cur := elem.Int()
+		elem.SetInt(int64(value))
+		return cur != 0 && cur != int64(value)
+	}
+
+	return false
+}
+
+func (c *Config) bindFloat32(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.GetFloat(tag)
+	if ok {
+		cur := elem.Float()
+		elem.SetFloat(value)
+		return cur != 0 && cur != float64(value)
+	}
+
+	return false
+}
+
+func (c *Config) bindFloat64(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.GetFloat(tag)
+	if ok {
+		cur := elem.Float()
+		elem.SetFloat(value)
+		return cur != 0 && cur != value
+	}
+
+	return false
+}
+
+func (c *Config) bindBool(elem reflect.Value, tag string) bool {
+	value, ok := c.cache.GetBool(tag)
+	if ok {
+		cur := elem.Bool()
+		elem.SetBool(value)
+		return !cur && cur != value
+	}
+
+	return false
 }
 
 func (c *Config) apply() {

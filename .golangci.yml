@@ -1,0 +1,27 @@
+run:
+
+linters:
+  enable:
+    - deadcode
+    - errcheck
+    - errorlint
+    - gosimple
+    - govet
+    - ineffassign
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+    - cyclop
+    - durationcheck
+    - dogsled
+    - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - godot
+    - golint
+    - gosec
+    - ifshort
+    - prealloc
+    - wastedassign
+    - staticcheck

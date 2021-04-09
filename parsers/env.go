@@ -6,7 +6,7 @@ import (
 )
 
 // EnvParser is a configuration parser
-// which reads from environment variables
+// which reads from environment variables.
 type EnvParser struct {
 	prefixes []string
 }
@@ -14,14 +14,14 @@ type EnvParser struct {
 // NewEnvParser returns a new EnvParser.
 //
 // An EnvParser read environment variables into
-// a configuration
+// a configuration.
 func NewEnvParser() *EnvParser {
 	return &EnvParser{}
 }
 
 // NewEnvParserWithPrefix returns a new EnvParser
 // which reads environment variables with any of
-// the specified prefixes
+// the specified prefixes.
 func NewEnvParserWithPrefix(prefixes ...string) *EnvParser {
 	if len(prefixes) == 0 {
 		prefixes = append(prefixes, "")
@@ -31,7 +31,7 @@ func NewEnvParserWithPrefix(prefixes ...string) *EnvParser {
 }
 
 // Parse returns environment variables as a map[string]interface{},
-// which might be prefixed with a specified prefix
+// which might be prefixed with a specified prefix.
 func (p *EnvParser) Parse() (map[string]interface{}, error) {
 	values := make(map[string]interface{})
 
