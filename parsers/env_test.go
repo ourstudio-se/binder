@@ -42,3 +42,16 @@ func Test_Env_Without_Prefix(t *testing.T) {
 
 	assert.Equal(t, expected, values[key])
 }
+
+func Test_Env_Preserves_case(t *testing.T) {
+	key := "FOO"
+	expected := "bar"
+	err := os.Setenv(key, expected)
+	assert.NoError(t, err)
+
+	p := NewEnvParserWithPrefix("")
+	values, err := p.Parse()
+	assert.NoError(t, err)
+
+	assert.Equal(t, expected, values[key])
+}

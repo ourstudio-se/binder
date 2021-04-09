@@ -37,9 +37,9 @@ func (p *EnvParser) Parse() (map[string]interface{}, error) {
 
 	for _, v := range os.Environ() {
 		for _, prefix := range p.prefixes {
-			prefix = strings.ToLower(prefix)
+			lcPrefix := strings.ToLower(prefix)
 			lc := strings.ToLower(v)
-			if prefix != "" && !strings.HasPrefix(lc, prefix) {
+			if prefix != "" && !strings.HasPrefix(lc, lcPrefix) {
 				continue
 			}
 
@@ -48,7 +48,7 @@ func (p *EnvParser) Parse() (map[string]interface{}, error) {
 				continue
 			}
 
-			key := strings.Replace(strings.ToLower(strings.TrimSpace(kvp[0])), prefix, "", 1)
+			key := strings.Replace(strings.TrimSpace(kvp[0]), prefix, "", 1)
 			value := strings.TrimSpace(kvp[1])
 
 			values[key] = value
