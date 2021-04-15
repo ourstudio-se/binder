@@ -1,13 +1,12 @@
 name: Go
 
 on:
+  workflow_dispatch:
   push:
-    branches: [ master ]
   pull_request:
     branches: [ master ]
 
 jobs:
-
   build:
     name: Build
     runs-on: ubuntu-latest
@@ -25,8 +24,6 @@ jobs:
     - name: Get dependencies
       run: |
         go mod download
-        go get -u honnef.co/go/tools/cmd/staticcheck
-        curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v1.27.0
 
     - name: Build
       run: go build -v .
@@ -34,11 +31,7 @@ jobs:
     - name: Test
       run: go test -race -cover -v ./...
 
-    - name: Vet
-      run: go vet ./...
-      
-    - name: Static Analysis
-      run: staticcheck ./...
-      
-    - name: Lint
-      run: golangci-lint run ./...
+    - name: golangci-lint
+      uses: golangci/golangci-lint-action@v2
+      with:
+        version: v1.39

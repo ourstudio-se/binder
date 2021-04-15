@@ -6,7 +6,7 @@ import (
 	"strconv"
 )
 
-// Values is a collection of configuration values
+// Values is a collection of configuration values.
 type Values struct {
 	m map[string]*Value
 }
@@ -14,7 +14,7 @@ type Values struct {
 // Get returns the value matching the specified key,
 // as a string. It returns true as second return
 // value if the specified key exist, or false
-// if no such key was found
+// if no such key was found.
 func (v *Values) Get(key string) (string, bool) {
 	return v.m[key].String()
 }
@@ -23,7 +23,7 @@ func (v *Values) Get(key string) (string, bool) {
 // key as a collection of strings. It returns true as
 // second return value if the specified key exist, or
 // false if no such key was found or if it was in the
-// wrong format
+// wrong format.
 func (v *Values) GetStrings(key string) ([]string, bool) {
 	return v.m[key].StringArray()
 }
@@ -31,7 +31,7 @@ func (v *Values) GetStrings(key string) ([]string, bool) {
 // GetInt returns the value matching the specified key,
 // as an integer. It returns true as second return
 // value if the specified key exist, or false
-// if no such key was found
+// if no such key was found.
 func (v *Values) GetInt(key string) (int, bool) {
 	return v.m[key].Int()
 }
@@ -39,7 +39,7 @@ func (v *Values) GetInt(key string) (int, bool) {
 // GetFloat returns the value matching the specified key,
 // as a float. It returns true as second return
 // value if the specified key exist, or false
-// if no such key was found
+// if no such key was found.
 func (v *Values) GetFloat(key string) (float64, bool) {
 	return v.m[key].Float()
 }
@@ -47,17 +47,17 @@ func (v *Values) GetFloat(key string) (float64, bool) {
 // GetBool returns the value matching the specified key,
 // as a boolean. It returns true as second return
 // value if the specified key exist, or false
-// if no such key was found
+// if no such key was found.
 func (v *Values) GetBool(key string) (bool, bool) {
 	return v.m[key].Bool()
 }
 
-// Value wraps a configuration value
+// Value wraps a configuration value.
 type Value struct {
 	v interface{}
 }
 
-// String returns a configuration value in string format
+// String returns a configuration value in string format.
 func (c *Value) String() (string, bool) {
 	if c == nil {
 		return "", false
@@ -70,7 +70,7 @@ func (c *Value) String() (string, bool) {
 	return fmt.Sprintf("%v", c.v), true
 }
 
-// StringArray returns a configuration collection of strings
+// StringArray returns a configuration collection of strings.
 func (c *Value) StringArray() ([]string, bool) {
 	if c == nil {
 		return nil, false
@@ -87,7 +87,7 @@ func (c *Value) StringArray() ([]string, bool) {
 
 // Int returns a configuration value as an integer, and
 // return true as second return value if the value could
-// be returned as an int - otherwise it returns false
+// be returned as an int - otherwise it returns false.
 func (c *Value) Int() (int, bool) {
 	if c == nil {
 		return 0, false
@@ -109,7 +109,7 @@ func (c *Value) Int() (int, bool) {
 
 // Float returns a configuration value as a float, and
 // return true as second return value if the value could
-// be returned as a float - otherwise it returns false
+// be returned as a float - otherwise it returns false.
 func (c *Value) Float() (float64, bool) {
 	if c == nil {
 		return 0, false
@@ -137,7 +137,7 @@ func (c *Value) Float() (float64, bool) {
 
 // Bool returns a configuration value as a boolean, and
 // return true as second return value if the value could
-// be returned as a boolean - otherwise it returns false
+// be returned as a boolean - otherwise it returns false.
 func (c *Value) Bool() (bool, bool) {
 	if c == nil {
 		return false, false

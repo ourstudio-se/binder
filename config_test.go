@@ -59,7 +59,7 @@ func Test_New(t *testing.T) {
 		newFakeOption(),
 		newFakeOption(),
 	}
-	var opts []Option
+	opts := make([]Option, 0, len(fakes))
 
 	for _, fake := range fakes {
 		opts = append(opts, fake.fn)
