@@ -8,7 +8,10 @@ Example:
 ```go
 package main
 
-import "github.com/ourstudio-se/binder"
+import (
+    "fmt"
+    "github.com/ourstudio-se/binder"
+)
 
 type MyFirst struct {
     KeyOne string `config:"external_key_one"`
@@ -104,7 +107,6 @@ package main
 
 import (
     "fmt"
-    "log"
     "github.com/ourstudio-se/binder"
 )
 
@@ -120,6 +122,29 @@ func main() {
     bnd := binder.New(
         binder.WithFile("../values.conf"),
         binder.WithWatch("../values.conf"))
+    defer bnd.Close()
+
+    var cfg MyConfig
+    bnd.Bind(&cfg)
+
+}
+```
+
+One can specify a `BindMode` when matching a configuration key to a struct tag. Default is case insensitivity, meaning a struct tag `config:"mykey"` will match a configuration key `MyKey`. Pass the value `ModeStrict` to disable this behavior. Example:
+
+```go
+package main
+
+import "github.com/ourstudio-se/binder"
+
+type MyConfig struct {
+    Property string `config:"PROPERTY"`
+}
+
+func main() {
+    bnd := binder.New(
+        binder.WithFile("../values.conf"),
+        binder.WithBindMode(binder.ModeStrict))
     defer bnd.Close()
 
     var cfg MyConfig

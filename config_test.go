@@ -154,6 +154,40 @@ func Test_Bind(t *testing.T) {
 	assert.EqualValues(t, []string{"a", "b"}, b4.ValueField)
 }
 
+func Test_BindMode_IgnoreCase(t *testing.T) {
+	expected := "value"
+
+	m := make(map[string]interface{})
+	m["TeSt_KeY"] = expected
+
+	c := New(
+		WithParser(newFakeParser(m)),
+		WithBindMode(ModeIgnoreCase))
+
+	var result struct {
+		TestKey string `config:"test_key"`
+	}
+	c.Bind(&result)
+
+	assert.Equal(t, expected, result.TestKey)
+}
+
+func Test_BindMode_Strict(t *testing.T) {
+	m := make(map[string]interface{})
+	m["TeSt_KeY"] = "value"
+
+	c := New(
+		WithParser(newFakeParser(m)),
+		WithBindMode(ModeStrict))
+
+	var result struct {
+		TestKey string `config:"test_key"`
+	}
+	c.Bind(&result)
+
+	assert.NotEqual(t, "value", result.TestKey)
+}
+
 type fakeRebindParser struct {
 	value string
 }

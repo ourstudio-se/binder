@@ -66,3 +66,13 @@ func WithWatch(path string) Option {
 		c.Watch(path)
 	}
 }
+
+// WithBindMode sets a mode which
+// is used when binding configuration values.
+// To restrict from mapping keys with case insensitivity,
+// pass `ModeStrict` as parameter.
+func WithBindMode(po BindMode) Option {
+	return func(c *Config) {
+		c.mask = po
+	}
+}

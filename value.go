@@ -4,11 +4,22 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 )
 
 // Values is a collection of configuration values.
 type Values struct {
 	m map[string]*Value
+}
+
+func (v *Values) getIgnoreCase(key string) *Value {
+	for k, v := range v.m {
+		if strings.EqualFold(key, k) {
+			return v
+		}
+	}
+
+	return nil
 }
 
 // Get returns the value matching the specified key,
@@ -17,6 +28,14 @@ type Values struct {
 // if no such key was found.
 func (v *Values) Get(key string) (string, bool) {
 	return v.m[key].String()
+}
+
+func (v *Values) getString(key string, op BindMode) (string, bool) {
+	if op.has(ModeStrict) {
+		return v.Get(key)
+	}
+
+	return v.getIgnoreCase(key).String()
 }
 
 // GetStrings returns the value matching the specified
@@ -28,12 +47,28 @@ func (v *Values) GetStrings(key string) ([]string, bool) {
 	return v.m[key].StringArray()
 }
 
+func (v *Values) getStrings(key string, op BindMode) ([]string, bool) {
+	if op.has(ModeStrict) {
+		return v.GetStrings(key)
+	}
+
+	return v.getIgnoreCase(key).StringArray()
+}
+
 // GetInt returns the value matching the specified key,
 // as an integer. It returns true as second return
 // value if the specified key exist, or false
 // if no such key was found.
 func (v *Values) GetInt(key string) (int, bool) {
 	return v.m[key].Int()
+}
+
+func (v *Values) getInt(key string, op BindMode) (int, bool) {
+	if op.has(ModeStrict) {
+		return v.GetInt(key)
+	}
+
+	return v.getIgnoreCase(key).Int()
 }
 
 // GetFloat returns the value matching the specified key,
@@ -44,12 +79,28 @@ func (v *Values) GetFloat(key string) (float64, bool) {
 	return v.m[key].Float()
 }
 
+func (v *Values) getFloat(key string, op BindMode) (float64, bool) {
+	if op.has(ModeStrict) {
+		return v.GetFloat(key)
+	}
+
+	return v.getIgnoreCase(key).Float()
+}
+
 // GetBool returns the value matching the specified key,
 // as a boolean. It returns true as second return
 // value if the specified key exist, or false
 // if no such key was found.
 func (v *Values) GetBool(key string) (bool, bool) {
 	return v.m[key].Bool()
+}
+
+func (v *Values) getBool(key string, op BindMode) (bool, bool) {
+	if op.has(ModeStrict) {
+		return v.GetBool(key)
+	}
+
+	return v.getIgnoreCase(key).Bool()
 }
 
 // Value wraps a configuration value.
