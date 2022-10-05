@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/ourstudio-se/binder/parsers"
+	"github.com/spf13/pflag"
 )
 
 // Option is passed to the constructor of
@@ -34,6 +35,13 @@ func WithFile(filepath string, sep string) Option {
 	return WithParser(parsers.NewFileParser(filepath, sep))
 }
 
+// WithFlagSet is an Option to instantiate a
+// parser which reads command arguments via spf13's
+// FlagSet implementation.
+func WithFlagSet(flagSet *pflag.FlagSet) Option {
+	return WithParser(parsers.NewFlagSetParser(flagSet))
+}
+
 // WithKubernetesVolume is an Option to instantiate
 // a parser which reads a Kubernetes mounted
 // volume when instantiating a Config.
@@ -44,8 +52,8 @@ func WithKubernetesVolume(path string) Option {
 // WithURL is an Option to instantiate a
 // parser which reads a remote file when
 // instantiating a Config.
-func WithURL(u *url.URL) Option {
-	return WithParser(parsers.NewRemoteFileParser(u))
+func WithURL(u *url.URL, opts ...parsers.RemoteFileParserOption) Option {
+	return WithParser(parsers.NewRemoteFileParser(u, opts...))
 }
 
 // WithValue is an Option to add custom key/value
