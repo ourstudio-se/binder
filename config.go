@@ -81,9 +81,6 @@ func (c *Config) Use(p Parser) {
 // specified path, which will trigger a re-bind
 // for any bound configuration.
 func (c *Config) Watch(path string) {
-	c.m.Lock()
-	defer c.m.Unlock()
-
 	if c.watch == nil {
 		c.watch = newFileWatcher(c.apply, c.errs)
 	}

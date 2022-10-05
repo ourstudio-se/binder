@@ -8,20 +8,44 @@ import (
 	"time"
 )
 
-type httpclient interface {
-	Do(*http.Request) (*http.Response, error)
+type (
+	httpclient interface {
+		Do(*http.Request) (*http.Response, error)
+	}
+
+	RemoteFileParser struct {
+		u          *url.URL
+		httpclient httpclient
+		sep        string
+	}
+
+	RemoteFileParserOption func(*RemoteFileParser)
+)
+
+func WithHTTPClient(httpclient *http.Client) RemoteFileParserOption {
+	return func(p *RemoteFileParser) {
+		p.httpclient = httpclient
+	}
 }
 
-type RemoteFileParser struct {
-	u          *url.URL
-	httpclient httpclient
+func WithRemoteKeyValueSeparator(sep string) RemoteFileParserOption {
+	return func(p *RemoteFileParser) {
+		p.sep = sep
+	}
 }
 
-func NewRemoteFileParser(u *url.URL) *RemoteFileParser {
-	return &RemoteFileParser{
+func NewRemoteFileParser(u *url.URL, opts ...RemoteFileParserOption) *RemoteFileParser {
+	p := &RemoteFileParser{
 		u,
 		http.DefaultClient,
+		defaultKeyValueSeparator,
 	}
+
+	for _, opt := range opts {
+		opt(p)
+	}
+
+	return p
 }
 
 func (p *RemoteFileParser) Parse() (map[string]interface{}, error) {
@@ -44,6 +68,6 @@ func (p *RemoteFileParser) Parse() (map[string]interface{}, error) {
 		return nil, fmt.Errorf("remote server returned unsuccessful status code: %d", resp.StatusCode)
 	}
 
-	kvp := NewKeyValueParser(resp.Body)
+	kvp := NewKeyValueParser(resp.Body, WithKeyValueSeparator(p.sep))
 	return kvp.Parse()
 }

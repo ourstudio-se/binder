@@ -1,7 +1,6 @@
 package parsers
 
 import (
-	"io/ioutil"
 	"os"
 	"path/filepath"
 )
@@ -23,7 +22,7 @@ func (p *KubernetesVolumeParser) Parse() (map[string]interface{}, error) {
 		}
 
 		key := filepath.Base(path)
-		b, err := ioutil.ReadFile(path)
+		b, err := os.ReadFile(path)
 		if err != nil {
 			return nil
 		}

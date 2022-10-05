@@ -8,12 +8,14 @@ import (
 
 const defaultKeyValueSeparator string = ":"
 
-type KeyValueParser struct {
-	r         io.Reader
-	separator string
-}
+type (
+	KeyValueParser struct {
+		r         io.Reader
+		separator string
+	}
 
-type KeyValueParserOption func(*KeyValueParser)
+	KeyValueParserOption func(*KeyValueParser)
+)
 
 func WithKeyValueSeparator(sep string) KeyValueParserOption {
 	return func(kvp *KeyValueParser) {
