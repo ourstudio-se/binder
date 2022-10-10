@@ -35,6 +35,13 @@ func WithFile(filepath string, sep string) Option {
 	return WithParser(parsers.NewFileParser(filepath, sep))
 }
 
+// WithFlags is an Option to instantiate a
+// parser which reads command arguments via
+// Go flags package.
+func WithFlags() Option {
+	return WithParser(parsers.NewFlagParser())
+}
+
 // WithFlagSet is an Option to instantiate a
 // parser which reads command arguments via spf13's
 // FlagSet implementation.
