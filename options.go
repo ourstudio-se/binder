@@ -72,6 +72,18 @@ func WithValue(key string, value interface{}) Option {
 	return WithParser(parsers.NewKeyValueParser(r, parsers.WithKeyValueSeparator("=")))
 }
 
+// WithAzureConfig is an Option to instantiate
+// a parser which reads an App Config in Azure
+// when instantiating a Config.
+func WithAzureConfig(appConfig string, additionallyAllowTenants []string) Option {
+	azureConfigParser, err := parsers.NewAzureConfigParser(appConfig, additionallyAllowTenants)
+	if err != nil {
+		return nil
+	}
+
+	return WithParser(azureConfigParser)
+}
+
 // WithWatch adds a file path watch, which can be
 // used to reload configuration values that originates
 // from a FileParser or a KubernetesVolumeParser when

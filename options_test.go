@@ -66,3 +66,11 @@ func Test_WithWatch(t *testing.T) {
 
 	assert.NotNil(t, c.watch)
 }
+
+func Test_WithAzureConfig(t *testing.T) {
+	_, err := parsers.NewAzureConfigParser("", nil)
+	c := New(WithAzureConfig("", nil))
+
+	assert.NoError(t, err)
+	assert.Len(t, c.parsers, 1)
+}

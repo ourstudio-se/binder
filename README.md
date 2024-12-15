@@ -2,7 +2,7 @@
 
 Binder is a configuration reader that parses different types of configurations and adds the possibility to bind them to one or many typed instances.
 
-It can read configuration values from files, environment variables, `flag` flags, `spf13/pflags` flags, remote URLs, Kubernetes volumes, and is flexible enough to enable custom configuration parsers. Binder is also able to listen for file changes/volume changes, and re-bind configurations when a backing file or backing volume has been updated.
+It can read configuration values from files, environment variables, `flag` flags, `spf13/pflags` flags, remote URLs, Kubernetes volumes, Azure App Configs, and is flexible enough to enable custom configuration parsers. Binder is also able to listen for file changes/volume changes, and re-bind configurations when a backing file or backing volume has been updated.
 
 Example:
 ```go
@@ -71,24 +71,49 @@ package main
 var (
     theCommand = &cobra.Command{
         Use: "cmd",
-        RunE: func(cmd *cobra.Command, args []string) error {
-            bnd := binder.New(
-                binder.WithFlagSet(cmd.Flags()))
+		RunE: func(cmd *cobra.Command, args []string) error {
+			bnd := binder.New(
+				binder.WithFlagSet(cmd.Flags()))
 
-            cmd.ParseFlags(args)
+			cmd.ParseFlags(args)
 
-            var cfg Config
-            bnd.Bind(&cfg)
+			var cfg Config
+			bnd.Bind(&cfg)
 
-            fmt.Printf("Key: %s\n", cfg.Key)
+			fmt.Printf("Key: %s\n", cfg.Key)
 
-            return nil
-        }
-    }
+			return nil
+		}
+	}
 )
 
 func init() {
-    theCommand.Flags().String("key", "", "the key to use")
+	theCommand.Flags().String("key", "", "the key to use")
+}
+
+```
+
+Azure App Config parser, usable for Azure App Configs:
+```go
+package main
+
+import "github.com/ourstudio-se/binder"
+
+type Config struct {
+	KeyOne string `config:"external_key_one"`
+	KeyTwo string `config:"external_key_two"`
+}
+
+func main() {
+	bnd := binder.New(
+		binder.WithAzureConfig("https://appconfig-name.azconfig.io", ["tenant-id-for-key-vault"]))
+	defer bnd.Close()
+
+	var cfg Config
+	bnd.Bind(&cfg);
+
+	fmt.Printf("KeyOne: %s\n", cfg.KeyOne)
+	fmt.Printf("KeyTwo: %d\n", cfg.KeyTwo)
 }
 
 ```
