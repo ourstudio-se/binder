@@ -15,7 +15,7 @@ func TestAzureConfigParser_Parse_MultiPageAndKeyVaultRef(t *testing.T) {
 	firstValue := "firstValue"
 
 	keyVaultRefSettingKey := "kvSecretKey"
-	secretUriValue := "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}"
+	secretUriValue := "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}" //nolint
 	secretContentType := keyVaultRef
 
 	thirdKey := "thirdKey"
