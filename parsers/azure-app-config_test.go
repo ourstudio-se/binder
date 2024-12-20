@@ -6,31 +6,65 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"testing"
 )
 
-var numberOfFetches = 0
+func TestAzureConfigParser_Parse_MultiPageAndKeyVaultRef(t *testing.T) {
+	firstKey := "firstKey"
+	firstValue := "firstValue"
 
-func (m MockAppConfigPager) More() bool {
-	if numberOfFetches < m.availablePages {
-		numberOfFetches++
-		return true
+	keyVaultRefSettingKey := "kvSecretKey"
+	secretUriValue := "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}"
+	secretContentType := keyVaultRef
+
+	thirdKey := "thirdKey"
+	thirdValue := "thirdValue"
+
+	mockPager := &MockMultiPagePager{
+		pages: [][]azappconfig.Setting{
+			{
+				{Key: &firstKey, Value: &firstValue},
+				{Key: &keyVaultRefSettingKey, Value: &secretUriValue, ContentType: &secretContentType},
+			},
+			{
+				{Key: &thirdKey, Value: &thirdValue},
+			},
+		},
 	}
 
-	return false
+	parser := AzureConfigParser{
+		settingsPager: mockPager,
+		secretClientFactory: func(url string) (KeyVaultClient, error) {
+			return MockSecretClient{secret: "resolvedSecretValue"}, nil
+		},
+	}
+
+	configValues, err := parser.Parse()
+	require.NoError(t, err)
+
+	assert.Equal(t, 3, len(configValues))
+	assert.Equal(t, firstValue, configValues[firstKey])
+	assert.Equal(t, "resolvedSecretValue", configValues[keyVaultRefSettingKey])
+	assert.Equal(t, thirdValue, configValues[thirdKey])
 }
 
-func (m MockAppConfigPager) NextPage(_ context.Context) (azappconfig.ListSettingsPageResponse, error) {
-	return azappconfig.ListSettingsPageResponse{
-		Settings:  m.settings,
-		SyncToken: "",
-	}, nil
+type MockMultiPagePager struct {
+	current int
+	pages   [][]azappconfig.Setting
 }
 
-type MockAppConfigPager struct {
-	currentPage    int
-	availablePages int
-	settings       []azappconfig.Setting
+func (m *MockMultiPagePager) More() bool {
+	return m.current < len(m.pages)
+}
+
+func (m *MockMultiPagePager) NextPage(_ context.Context) (azappconfig.ListSettingsPageResponse, error) {
+	if !m.More() {
+		return azappconfig.ListSettingsPageResponse{}, fmt.Errorf("no more pages")
+	}
+	page := m.pages[m.current]
+	m.current++
+	return azappconfig.ListSettingsPageResponse{Settings: page}, nil
 }
 
 type MockSecretClient struct {
@@ -45,41 +79,82 @@ func (m MockSecretClient) GetSecret(_ context.Context, _ string, _ string, _ *az
 	}, nil
 }
 
-func Test_Azure_App_Config_Parse(t *testing.T) {
-	firstKey := "firstKey"
-	firstValue := "firstValue"
-	secondKey := "secondKey"
-	secondValue := "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}"
-	secretContentType := keyVaultRef
-	mock := MockAppConfigPager{
-		availablePages: 1,
-		settings: []azappconfig.Setting{
-			{
-				Key:   &firstKey,
-				Value: &firstValue,
-			},
-			{
-				Key:         &secondKey,
-				Value:       &secondValue,
-				ContentType: &secretContentType,
-			},
-		},
+func TestAzureConfigParser_resolveKeyVaultSecret(t *testing.T) {
+	secretValue := "secretValue"
+	type fields struct {
+		secretClientFactory func(url string) (KeyVaultClient, error)
 	}
-	mockParser := AzureConfigParser{
-		settingsPager: mock,
-		secretClientFactory: func(url string) (KeyVaultClient, error) {
-			return MockSecretClient{
-				secret: "secretValue",
-			}, nil
-		},
+	type args struct {
+		ctx               context.Context
+		keyVaultReference string
 	}
+	tests := []struct {
+		name    string
+		fields  fields
+		args    args
+		want    string
+		wantErr assert.ErrorAssertionFunc
+	}{
+		{
+			name: "Test resolveKeyVaultSecret with valid keyVaultReference",
+			fields: fields{
+				secretClientFactory: func(url string) (KeyVaultClient, error) {
+					return MockSecretClient{
+						secret: secretValue,
+					}, nil
+				},
+			},
+			args: args{
+				ctx:               context.Background(),
+				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}",
+			},
+			want:    secretValue,
+			wantErr: assert.NoError,
+		},
+		{
+			name: "Test resolveKeyVaultSecret with invalid keyVaultReference",
+			fields: fields{
+				secretClientFactory: func(url string) (KeyVaultClient, error) {
+					return MockSecretClient{
+						secret: secretValue,
+					}, nil
+				},
+			},
 
-	numberOfFetches = 0
-	configValues, err := mockParser.Parse()
-	assert.NoError(t, err)
-	assert.Equal(t, 2, len(configValues))
-	assert.Equal(t, firstValue, configValues[firstKey])
-	assert.Equal(t, "secretValue", configValues[secondKey])
+			args: args{
+				ctx:               context.Background(),
+				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets\"}",
+			},
+			want:    "",
+			wantErr: assert.Error,
+		},
+		{
+			name: "Test resolveKeyVaultSecret creating key vault client fails",
+			fields: fields{
+				secretClientFactory: func(url string) (KeyVaultClient, error) {
+					return nil, fmt.Errorf("failed to create key vault client")
+				},
+			},
+			args: args{
+				ctx:               context.Background(),
+				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}",
+			},
+			want:    "",
+			wantErr: assert.Error,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			p := &AzureConfigParser{
+				secretClientFactory: tt.fields.secretClientFactory,
+			}
+			got, err := p.resolveKeyVaultSecret(tt.args.ctx, tt.args.keyVaultReference)
+			if !tt.wantErr(t, err, fmt.Sprintf("resolveKeyVaultSecret(%v, %v)", tt.args.ctx, tt.args.keyVaultReference)) {
+				return
+			}
+			assert.Equalf(t, tt.want, got, "resolveKeyVaultSecret(%v, %v)", tt.args.ctx, tt.args.keyVaultReference)
+		})
+	}
 }
 
 func Test_getSecretRequestObject(t *testing.T) {
@@ -89,91 +164,37 @@ func Test_getSecretRequestObject(t *testing.T) {
 	tests := []struct {
 		name    string
 		args    args
-		want    KeyVaultSecretRequestObject
+		want    keyVaultRequestObject
 		wantErr assert.ErrorAssertionFunc
 	}{
 		{
-			name: "Test getSecretRequestObject with valid kVRef",
+			name: "Test parseKeyVaultURI with valid kVRef",
 			args: args{
 				kVRef: "https://vault-name.vault.azure.net/secrets/secret-name/secret-version",
 			},
-			want: KeyVaultSecretRequestObject{
+			want: keyVaultRequestObject{
 				vaultURL:      "https://vault-name.vault.azure.net",
 				secretName:    "secret-name",
 				secretVersion: "secret-version",
 			},
 			wantErr: assert.NoError,
 		},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			got, err := getSecretRequestObject(tt.args.kVRef)
-			if !tt.wantErr(t, err, fmt.Sprintf("getSecretRequestObject(%v)", tt.args.kVRef)) {
-				return
-			}
-			assert.Equalf(t, tt.want, got, "getSecretRequestObject(%v)", tt.args.kVRef)
-		})
-	}
-}
-
-func Test_getSecret(t *testing.T) {
-	secretValue := "secretValue"
-
-	type args struct {
-		secretClientFactory func(url string) (KeyVaultClient, error)
-		keyVaultReference   string
-	}
-	tests := []struct {
-		name    string
-		args    args
-		want    string
-		wantErr assert.ErrorAssertionFunc
-	}{
 		{
-			name: "Test getSecret with valid keyVaultReference",
+			name: "Test parseKeyVaultURI with invalid kVRef",
 			args: args{
-				secretClientFactory: func(url string) (KeyVaultClient, error) {
-					return MockSecretClient{
-						secret: secretValue,
-					}, nil
-				},
-				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}",
+				kVRef: "https://vault-name.vault.azure.net/secrets",
 			},
-			want:    secretValue,
-			wantErr: assert.NoError,
-		},
-		{
-			name: "Test getSecret with invalid keyVaultReference",
-			args: args{
-				secretClientFactory: func(url string) (KeyVaultClient, error) {
-					return MockSecretClient{
-						secret: secretValue,
-					}, nil
-				},
-				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets\"}",
-			},
-			want:    "",
-			wantErr: assert.Error,
-		},
-		{
-			name: "Test getSecret when creating key vault client fails",
-			args: args{
-				secretClientFactory: func(url string) (KeyVaultClient, error) {
-					return nil, fmt.Errorf("failed to create key vault client")
-				},
-				keyVaultReference: "{\"uri\":\"https://mykeyvault.vault.azure.net/secrets/mySecretName/0123456789abcdef\"}",
-			},
-			want:    "",
+			want:    keyVaultRequestObject{},
 			wantErr: assert.Error,
 		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := getSecret(context.Background(), tt.args.secretClientFactory, tt.args.keyVaultReference)
-			if !tt.wantErr(t, err, fmt.Sprintf("getSecret %s", tt.name)) {
+			got, err := parseKeyVaultURI(tt.args.kVRef)
+			if !tt.wantErr(t, err, fmt.Sprintf("parseKeyVaultURI(%v)", tt.args.kVRef)) {
 				return
 			}
-			assert.Equalf(t, tt.want, got, "getSecret(%v, %v)", tt.args.secretClientFactory, tt.args.keyVaultReference)
+			assert.Equalf(t, tt.want, got, "parseKeyVaultURI(%v)", tt.args.kVRef)
 		})
 	}
 }

@@ -61,78 +61,83 @@ func NewAzureConfigParser(appConfig string, additionallyAllowedTenants []string)
 	return &AzureConfigParser{pager, keyVaultClientFactoryFunc}, nil
 }
 
-// Parse returns the key/value pairs as a map[string]interface{}.
+// Parse retrieves all settings from AppConfig and resolves any KeyVault references.
 // TODO: Parse with context as parameter.
 func (p *AzureConfigParser) Parse() (map[string]interface{}, error) {
 	settings := make(map[string]interface{})
 
 	for p.settingsPager.More() {
-		snapshotPage, err := p.settingsPager.NextPage(context.Background())
+		settingsPage, err := p.settingsPager.NextPage(context.Background())
 		if err != nil {
-			return nil, fmt.Errorf("failed to get next page of pager %v", err)
+			return nil, fmt.Errorf("failed to get next page of pager %w", err)
 		}
 
-		for _, setting := range snapshotPage.Settings {
-			value := ""
-			if setting.ContentType != nil && strings.EqualFold(*setting.ContentType, keyVaultRef) {
-				secret, err := getSecret(context.Background(), p.secretClientFactory, *setting.Value)
-				if err != nil {
-					return nil, fmt.Errorf("failed to get secret value: %v", err)
-				}
-
-				value = secret
-			} else {
-				value = *setting.Value
+		for _, setting := range settingsPage.Settings {
+			if setting.Key == nil || setting.Value == nil {
+				continue
 			}
 
-			settings[*setting.Key] = value
+			var finalValue string
+			if setting.ContentType != nil && strings.EqualFold(*setting.ContentType, keyVaultRef) {
+				secretValue, err := p.resolveKeyVaultSecret(context.Background(), *setting.Value)
+				if err != nil {
+					return nil, fmt.Errorf("failed to get secret value: %w", err)
+				}
+
+				finalValue = secretValue
+			} else {
+				finalValue = *setting.Value
+			}
+
+			settings[*setting.Key] = finalValue
 		}
 	}
 
 	return settings, nil
 }
 
-type KeyVaultSecretRequestObject struct {
-	vaultURL      string
-	secretName    string
-	secretVersion string
-}
-
-func getSecret(ctx context.Context, secretClientFactory func(url string) (KeyVaultClient, error), keyVaultReference string) (string, error) {
+func (p *AzureConfigParser) resolveKeyVaultSecret(ctx context.Context, keyVaultReference string) (string, error) {
 	var kvRef struct {
 		URI string `json:"uri"`
 	}
 	if err := json.Unmarshal([]byte(keyVaultReference), &kvRef); err != nil {
-		return "", fmt.Errorf("failed to parse config value %s value that is Key Vault reference: %v", keyVaultReference, err)
+		return "", fmt.Errorf("failed to parse config value %s value that is Key Vault reference: %w", keyVaultReference, err)
 	}
 
-	secretRequestObject, err := getSecretRequestObject(kvRef.URI)
+	reqObj, err := parseKeyVaultURI(kvRef.URI)
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret request object: %v", err)
+		return "", fmt.Errorf("failed to get secret request object: %w", err)
 	}
 
-	keyVaultSecretClient, err := secretClientFactory(secretRequestObject.vaultURL)
+	keyVaultClient, err := p.secretClientFactory(reqObj.vaultURL)
 	if err != nil {
-		return "", fmt.Errorf("failed to create key vault client: %v", err)
+		return "", fmt.Errorf("failed to create KeyVault client for %s: %w", reqObj.vaultURL, err)
 	}
 
-	secret, err := getSecretValue(ctx, keyVaultSecretClient, secretRequestObject.secretName, secretRequestObject.secretVersion)
+	secret, err := fetchSecretValue(ctx, keyVaultClient, reqObj.secretName, reqObj.secretVersion, nil)
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret value: %v", err)
+		return "", fmt.Errorf("failed to get secret value: %w", err)
 	}
 
 	return secret, nil
 }
 
-func getSecretRequestObject(kVRef string) (KeyVaultSecretRequestObject, error) {
-	// https://vault-name.vault.azure.net/secrets/secret-name/secret-version
+type keyVaultRequestObject struct {
+	vaultURL      string
+	secretName    string
+	secretVersion string
+}
+
+// parseKeyVaultURI extracts vault URL, secret name and optionally secret version from a KeyVault URI.
+// Example URI: https://myvault.vault.azure.net/secrets/mysecret/myversion
+func parseKeyVaultURI(kVRef string) (keyVaultRequestObject, error) {
 	parts := strings.Split(strings.TrimPrefix(kVRef, "https://"), "/")
 
 	if len(parts) < 3 {
-		return KeyVaultSecretRequestObject{}, fmt.Errorf("invalid Key Vault reference: %s", kVRef)
+		return keyVaultRequestObject{}, fmt.Errorf("invalid Key Vault reference: %s", kVRef)
 	}
 
-	kv := KeyVaultSecretRequestObject{
+	kv := keyVaultRequestObject{
 		vaultURL:   "https://" + parts[0],
 		secretName: parts[2],
 	}
@@ -143,14 +148,15 @@ func getSecretRequestObject(kVRef string) (KeyVaultSecretRequestObject, error) {
 	return kv, nil
 }
 
-func getSecretValue(ctx context.Context, client KeyVaultClient, secretName, secretVersion string) (string, error) {
-	secretResp, err := client.GetSecret(ctx, secretName, secretVersion, nil)
+// fetchSecretValue retrieves the secret value from KeyVault.
+func fetchSecretValue(ctx context.Context, client KeyVaultClient, secretName, secretVersion string, options *azsecrets.GetSecretOptions) (string, error) {
+	resp, err := client.GetSecret(ctx, secretName, secretVersion, options)
 	if err != nil {
-		return "", fmt.Errorf("failed to get secret from Key Vault: %v", err)
+		return "", fmt.Errorf("failed to get secret from Key Vault: %w", err)
 	}
 
-	if secretResp.Value != nil {
-		return *secretResp.Value, nil
+	if resp.Value != nil {
+		return *resp.Value, nil
 	}
 
 	return "", fmt.Errorf("secret with name %s has no value", secretName)
