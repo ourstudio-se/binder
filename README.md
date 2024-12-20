@@ -2,7 +2,7 @@
 
 Binder is a configuration reader that parses different types of configurations and adds the possibility to bind them to one or many typed instances.
 
-It can read configuration values from files, environment variables, `flag` flags, `spf13/pflags` flags, remote URLs, Kubernetes volumes, Azure App Configs, and is flexible enough to enable custom configuration parsers. Binder is also able to listen for file changes/volume changes, and re-bind configurations when a backing file or backing volume has been updated.
+It can read configuration values from files, environment variables, `flag` flags, `spf13/pflags` flags, remote URLs, Kubernetes volumes, Azure App Configs with backing Azure Key Vaults, and is flexible enough to enable custom configuration parsers. Binder is also able to listen for file changes/volume changes, and re-bind configurations when a backing file or backing volume has been updated.
 
 Example:
 ```go
@@ -106,7 +106,7 @@ type Config struct {
 
 func main() {
 	bnd := binder.New(
-		binder.WithAzureConfig("https://appconfig-name.azconfig.io", ["tenant-id-for-key-vault"]))
+		binder.WithAzureConfig("https://appconfig-name.azconfig.io", []string{"additional-tenant-id"}))
 	defer bnd.Close()
 
 	var cfg Config
