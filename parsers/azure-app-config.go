@@ -8,6 +8,7 @@ import (
 	"github.com/Azure/azure-sdk-for-go/sdk/data/azappconfig"
 	"github.com/Azure/azure-sdk-for-go/sdk/security/keyvault/azsecrets"
 	"strings"
+	"time"
 )
 
 const (
@@ -64,10 +65,13 @@ func NewAzureConfigParser(appConfig string, additionallyAllowedTenants []string)
 // Parse retrieves all settings from AppConfig and resolves any KeyVault references.
 // TODO: Parse with context as parameter.
 func (p *AzureConfigParser) Parse() (map[string]interface{}, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), time.Second*5)
+	defer cancel()
+
 	settings := make(map[string]interface{})
 
 	for p.settingsPager.More() {
-		settingsPage, err := p.settingsPager.NextPage(context.Background())
+		settingsPage, err := p.settingsPager.NextPage(ctx)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get next page of pager %w", err)
 		}
@@ -79,7 +83,7 @@ func (p *AzureConfigParser) Parse() (map[string]interface{}, error) {
 
 			var finalValue string
 			if setting.ContentType != nil && strings.EqualFold(*setting.ContentType, keyVaultRef) {
-				secretValue, err := p.resolveKeyVaultSecret(context.Background(), *setting.Value)
+				secretValue, err := p.resolveKeyVaultSecret(ctx, *setting.Value)
 				if err != nil {
 					return nil, fmt.Errorf("failed to get secret value: %w", err)
 				}
