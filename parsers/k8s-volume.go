@@ -22,7 +22,7 @@ func (p *KubernetesVolumeParser) Parse() (map[string]interface{}, error) {
 		}
 
 		key := filepath.Base(path)
-		b, err := os.ReadFile(path)
+		b, err := os.ReadFile(path) // #nosec G304 -- path is controlled by user-provided volume mount path
 		if err != nil {
 			return nil
 		}

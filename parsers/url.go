@@ -62,7 +62,7 @@ func (p *RemoteFileParser) Parse() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return nil, fmt.Errorf("remote server returned unsuccessful status code: %d", resp.StatusCode)

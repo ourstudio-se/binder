@@ -24,7 +24,7 @@ func (p *FileParser) Parse() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	defer h.Close()
+	defer func() { _ = h.Close() }()
 
 	kvp := NewKeyValueParser(h, WithKeyValueSeparator(p.sep))
 	return kvp.Parse()
