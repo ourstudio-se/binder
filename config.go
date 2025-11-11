@@ -5,7 +5,7 @@ import (
 	"reflect"
 	"sync"
 
-	"github.com/radovskyb/watcher"
+	"github.com/fsnotify/fsnotify"
 )
 
 const configStructTagName string = "config"
@@ -26,7 +26,7 @@ type Config struct {
 	binders []reflect.Value
 	cache   *Values
 	errch   chan error
-	watch   *watcher.Watcher
+	watch   *fsnotify.Watcher
 	m       sync.Mutex
 }
 
@@ -49,7 +49,7 @@ func New(opts ...Option) *Config {
 // Close cleans up channels and file watches.
 func (c *Config) Close() {
 	if c.watch != nil {
-		c.watch.Close()
+		_ = c.watch.Close()
 	}
 
 	close(c.errch)
@@ -273,19 +273,28 @@ func isSliceEqual(as interface{}, bs interface{}) bool {
 	return true
 }
 
-func newFileWatcher(fn func(), errfn func(error)) *watcher.Watcher {
-	w := watcher.New()
-	w.SetMaxEvents(1)
-	w.FilterOps(watcher.Write)
+func newFileWatcher(fn func(), errfn func(error)) *fsnotify.Watcher {
+	w, err := fsnotify.NewWatcher()
+	if err != nil {
+		errfn(err)
+		return nil
+	}
 
 	go func() {
 		for {
 			select {
-			case <-w.Event:
-				fn()
-			case <-w.Closed:
-				return
-			case err := <-w.Error:
+			case event, ok := <-w.Events:
+				if !ok {
+					return
+				}
+				// Only trigger on write events (file modifications)
+				if event.Has(fsnotify.Write) {
+					fn()
+				}
+			case err, ok := <-w.Errors:
+				if !ok {
+					return
+				}
 				errfn(err)
 			}
 		}

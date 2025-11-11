@@ -1,13 +1,11 @@
-run:
+version: '2'
 
 linters:
   enable:
     - errcheck
     - errorlint
-    - gosimple
     - govet
     - ineffassign
-    - typecheck
     - unused
     - cyclop
     - durationcheck
